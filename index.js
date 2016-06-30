@@ -568,6 +568,16 @@ class GPlus {
 			return;
 		} 
 
+		// insert lookahead padding
+		if(m = line.match(/^@lookpad/)) {
+			for (var i = 0; i < 200; i++) {
+				this.addLine("");
+			}
+			return;
+		} 
+
+
+
 		// block numbers
 		if(m = line.match(/^N(@)(\w+)/)) {
 			// if name not otherwise defined, define it as the line number
