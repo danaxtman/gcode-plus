@@ -99,7 +99,7 @@ class GPlus {
 					prog.header.map(l => "(" + l + ") ;").join("\r\n") + 
 					(prog.header.length ? "\r\n":"") +
 					prog.lines
-					.filter(l => false &&  (l.line && l.line.length) || (l.comment && l.comment.length))
+					//.filter(l => (l.line && l.line.length) || (l.comment && l.comment.length))
 					.map(l => {
 						var eob = this.env.verbose ? " (" + l.file + ":" + l.inLine +  (l.comment ? " " +l.comment : "") + ") ;" : " ;"
 						if(l.line) {
@@ -423,7 +423,7 @@ class GPlus {
 					unresolved: [],
 					snap: this.globSnap(),
 				};
-				this.outLine = 0;
+				this.outLine = 1;
 				this.programs[name] = this.curProg;
 			}
 			return;
@@ -475,7 +475,10 @@ class GPlus {
 				file: this.file, 
 				inCase: false,
 				cases: [], 
-				outLine: this.curProg.lines.length,
+				outLine: this.outLine++, 
+				insertPoint:this.curProg.lines.length,
+				switch: this.eval(m[1]),
+
 			};
 			this.switchStack.push(this.inSwitch);
 			this.inSwitch = s;
@@ -487,26 +490,44 @@ class GPlus {
 				return;
 			} else {
 				let jt = [];
-				
+				var switchId = this.switchStack.length;
 				// insert jumps for each case
 				for (let i = 0; i < this.inSwitch.cases.length; i++) {
 					let c = this.inSwitch.cases[i];
-					jt.push(`IF[${this.inSwitch.switch} EQ c.val] GOTO@__${this.switchStack.length}_${i+1}`);
+					jt.push({ 
+						file: this.inSwitch.file, 
+						inLine: this.inSwitch.line, 
+						outLine:this.inSwitch.outLine, 
+						line: `IF[${this.inSwitch.switch} EQ ${c.val}] GOTO@__${switchId}_${i+1}`, 
+						comment: "case " + this.inSwitch.switch + " jump",  
+					});
 				}
 				
 				// insert default case jump
 				if(this.inSwitch.defaultCase) {
-					jt.push(`GOTO@__${this.switchStack.length}_default`);
+					jt.push({ 
+						file: this.inSwitch.file, 
+						inLine: this.inSwitch.line, 
+						outLine:this.inSwitch.outLine, 
+						line: `GOTO@__${switchId}_default`, 
+						comment: "case default jump",  
+					});
 				} else {
 					// jump to endcase
-					jt.push(`GOTO@__${this.switchStack.length}_endswitch`);
+					jt.push({ 
+						file: this.inSwitch.file, 
+						inLine: this.inSwitch.line, 
+						outLine:this.inSwitch.outLine, 
+						line: `GOTO@__${switchId}_endswitch`, 
+						comment: "no match jump",  
+					});
 				}
 				
 				// inset jump table lines at @switch location
-				this.curProg.lines.splice(this.inSwitch.outLine, 0, ...jt);
+				this.curProg.lines.splice(this.inSwitch.insertPoint, 0, ...jt);
 				
 				// output endcase jump point
-				line = `N@__${this.switchStack.length}_endswitch`;
+				line = `N@__${switchId}_endswitch`;
 				this.inSwitch = this.switchStack.pop();
 				// fall through !!
 			}
@@ -520,6 +541,7 @@ class GPlus {
 				this.inSwitch.cases.push({
 					line: this.inLine, 
 					file: this.file, 
+					val: this.eval(m[1]), 
 				});
 				this.inSwitch.inCase = true;
 				// insert a block number with a symbol for the jump table
