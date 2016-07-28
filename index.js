@@ -498,7 +498,7 @@ class GPlus {
 						file: this.inSwitch.file, 
 						inLine: this.inSwitch.line, 
 						outLine:this.inSwitch.outLine, 
-						line: `IF[${this.inSwitch.switch} EQ ${c.val}] GOTO@__${switchId}_${i+1}`, 
+						line: `IF[#${this.inSwitch.switch} EQ ${c.val}] GOTO@__${switchId}_${i+1}`, 
 						comment: "case " + this.inSwitch.switch + " jump",  
 					});
 				}
